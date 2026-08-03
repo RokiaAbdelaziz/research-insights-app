@@ -1,6 +1,14 @@
+import io
+import re
 import streamlit as st
 import anthropic
 from datetime import date
+from docx import Document
+from docx.shared import Pt, Cm
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.table import WD_TABLE_ALIGNMENT
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
 
 st.set_page_config(
     page_title="Research & Insights Automation Engine",
@@ -217,6 +225,161 @@ def generate_report(client, user_prompt, system_prompt, max_tokens, max_searches
 
 
 # ----------------------------
+# Markdown -> Word (.docx) conversion
+# ----------------------------
+def _set_paragraph_rtl(paragraph):
+    """Force a paragraph to render right-to-left (needed for Arabic output)."""
+    pPr = paragraph._p.get_or_add_pPr()
+    bidi = OxmlElement('w:bidi')
+    bidi.set(qn('w:val'), '1')
+    pPr.append(bidi)
+    paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+
+
+def _add_run_with_bold(paragraph, text, rtl=False):
+    """Split on **bold** markers and add runs accordingly."""
+    parts = re.split(r'(\*\*.*?\*\*)', text)
+    for part in parts:
+        if not part:
+            continue
+        is_bold = part.startswith('**') and part.endswith('**')
+        content = part[2:-2] if is_bold else part
+        run = paragraph.add_run(content)
+        run.bold = is_bold
+        if rtl:
+            rPr = run._r.get_or_add_rPr()
+            rtl_el = OxmlElement('w:rtl')
+            rtl_el.set(qn('w:val'), '1')
+            rPr.append(rtl_el)
+
+
+def _style_table_header_cell(cell):
+    shading = OxmlElement('w:shd')
+    shading.set(qn('w:val'), 'clear')
+    shading.set(qn('w:fill'), 'D9D9D9')
+    cell._tc.get_or_add_tcPr().append(shading)
+
+
+def markdown_to_docx(markdown_text: str, rtl: bool = False, base_font: str = None) -> io.BytesIO:
+    """
+    Converts a constrained Markdown subset (headers, bold, bullet lists,
+    pipe tables, plain paragraphs) into a Word document. Good enough for
+    the structured SOP reports this app generates; not a general-purpose
+    Markdown-to-docx engine.
+    """
+    doc = Document()
+
+    # Base font + RTL document defaults
+    normal_style = doc.styles['Normal']
+    if base_font:
+        normal_style.font.name = base_font
+        rPr = normal_style.element.get_or_add_rPr()
+        rFonts = rPr.find(qn('w:rFonts'))
+        if rFonts is None:
+            rFonts = OxmlElement('w:rFonts')
+            rPr.append(rFonts)
+        rFonts.set(qn('w:cs'), base_font)
+    normal_style.font.size = Pt(11)
+
+    if rtl:
+        sectPr = doc.sections[0]._sectPr
+        bidi = OxmlElement('w:bidi')
+        sectPr.append(bidi)
+
+    lines = markdown_text.splitlines()
+    i = 0
+    n = len(lines)
+
+    while i < n:
+        line = lines[i].rstrip()
+
+        if not line.strip():
+            i += 1
+            continue
+
+        # Horizontal rule -> skip (rendered as a blank paragraph with border would be overkill)
+        if re.match(r'^-{3,}$', line.strip()):
+            i += 1
+            continue
+
+        # Headers
+        header_match = re.match(r'^(#{1,4})\s+(.*)', line)
+        if header_match:
+            level = len(header_match.group(1))
+            text = header_match.group(2).strip()
+            p = doc.add_heading(level=min(level, 4))
+            _add_run_with_bold(p, text, rtl=rtl)
+            if rtl:
+                _set_paragraph_rtl(p)
+            i += 1
+            continue
+
+        # Markdown table block
+        if line.strip().startswith('|'):
+            table_lines = []
+            while i < n and lines[i].strip().startswith('|'):
+                table_lines.append(lines[i].strip())
+                i += 1
+            # Drop the "---|---|---" separator row (2nd row)
+            rows = [
+                [c.strip() for c in tl.strip('|').split('|')]
+                for tl in table_lines
+                if not re.match(r'^\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?$', tl)
+            ]
+            if rows:
+                ncols = len(rows[0])
+                table = doc.add_table(rows=0, cols=ncols)
+                table.alignment = WD_TABLE_ALIGNMENT.CENTER
+                table.style = 'Light Grid Accent 1'
+                for r_idx, row_cells in enumerate(rows):
+                    row = table.add_row()
+                    for c_idx in range(ncols):
+                        cell_text = row_cells[c_idx] if c_idx < len(row_cells) else ""
+                        cell = row.cells[c_idx]
+                        cell.paragraphs[0].text = ""
+                        p = cell.paragraphs[0]
+                        _add_run_with_bold(p, cell_text, rtl=rtl)
+                        if rtl:
+                            _set_paragraph_rtl(p)
+                        if r_idx == 0:
+                            for run in p.runs:
+                                run.bold = True
+                            _style_table_header_cell(cell)
+            continue
+
+        # Bullet list items
+        bullet_match = re.match(r'^[\-\*]\s+(.*)', line)
+        if bullet_match:
+            p = doc.add_paragraph(style='List Bullet')
+            _add_run_with_bold(p, bullet_match.group(1), rtl=rtl)
+            if rtl:
+                _set_paragraph_rtl(p)
+            i += 1
+            continue
+
+        numbered_match = re.match(r'^\d+\.\s+(.*)', line)
+        if numbered_match:
+            p = doc.add_paragraph(style='List Number')
+            _add_run_with_bold(p, numbered_match.group(1), rtl=rtl)
+            if rtl:
+                _set_paragraph_rtl(p)
+            i += 1
+            continue
+
+        # Plain paragraph
+        p = doc.add_paragraph()
+        _add_run_with_bold(p, line.strip(), rtl=rtl)
+        if rtl:
+            _set_paragraph_rtl(p)
+        i += 1
+
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    return buffer
+
+
+# ----------------------------
 # Execution
 # ----------------------------
 if submit_button:
@@ -265,8 +428,10 @@ SPECIFIC RESEARCH QUESTIONS TO ANSWER:
 
         # Action Buttons
         st.markdown("---")
-        col_dl1, col_dl2 = st.columns(2)
         safe_name = (project_name or "Research").strip().replace(" ", "_")
+        is_arabic = "Arabic" in language
+
+        col_dl1, col_dl2, col_dl3 = st.columns(3)
         with col_dl1:
             st.download_button(
                 label="📄 Download Report (.txt)",
@@ -281,3 +446,18 @@ SPECIFIC RESEARCH QUESTIONS TO ANSWER:
                 file_name=f"{safe_name}_Report.md",
                 mime="text/markdown"
             )
+        with col_dl3:
+            try:
+                docx_buffer = markdown_to_docx(
+                    report_text,
+                    rtl=is_arabic,
+                    base_font="Arial" if is_arabic else "Calibri"
+                )
+                st.download_button(
+                    label="📘 Download Report (.docx)",
+                    data=docx_buffer,
+                    file_name=f"{safe_name}_Report.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                )
+            except Exception as e:
+                st.warning(f"Word export failed, but .txt/.md are available above. ({e})")
