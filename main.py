@@ -158,7 +158,7 @@ if submit_button:
         {specific_questions if specific_questions else "Extract key research questions automatically based on the business objective."}
         """
         
-        with st.spinner("Analyzing market parameters, verifying sources, and generating SOP report..."):
+        with st.spinner("Analyzing market parameters, verifying sources, and generating report..."):
             try:
                 response = client.messages.create(
                    model=MODEL_NAME,
@@ -167,7 +167,9 @@ if submit_button:
                     messages=[{"role": "user", "content": user_prompt}]
                 )
                 
-                report_text = response.content[0].text
+                report_text = "".join(
+    [block.text for block in response.content if getattr(block, "type", None) == "text"]
+)
                 
                 st.success("Report Generated Successfully!")
                 st.markdown("---")
