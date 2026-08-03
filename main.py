@@ -75,13 +75,7 @@ def get_drive_services():
     if "GDRIVE_SERVICE_ACCOUNT" not in st.secrets:
         return None, None, None
     try:
-        raw_info = st.secrets["GDRIVE_SERVICE_ACCOUNT"]
-        # Handle both string JSON and TOML dict formats seamlessly
-        if isinstance(raw_info, str):
-            service_account_info = json.loads(raw_info)
-        else:
-            service_account_info = dict(raw_info)
-            
+        service_account_info = json.loads(st.secrets["GDRIVE_SERVICE_ACCOUNT"])
         creds = service_account.Credentials.from_service_account_info(
             service_account_info, scopes=SCOPES
         )
