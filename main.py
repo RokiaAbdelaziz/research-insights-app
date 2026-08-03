@@ -165,7 +165,7 @@ if submit_button:
                     max_tokens=4000,
                     system=COMPREHENSIVE_SYSTEM_PROMPT,
                     messages=[{"role": "user", "content": user_prompt}],
-                    tools=[{"type": "web_search", "name": "web_search"}]
+                    tools=[{"type": "web_search_20250305", "name": "web_search"}]
                 )
                 
                 report_text = "".join(
