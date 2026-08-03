@@ -75,7 +75,12 @@ def get_drive_services():
     if "GDRIVE_SERVICE_ACCOUNT" not in st.secrets:
         return None, None, None
     try:
-        service_account_info = json.loads(st.secrets["GDRIVE_SERVICE_ACCOUNT"])
+        raw_info = st.secrets["GDRIVE_SERVICE_ACCOUNT"]
+        if isinstance(raw_info, str):
+            service_account_info = json.loads(raw_info)
+        else:
+            service_account_info = dict(raw_info)
+
         creds = service_account.Credentials.from_service_account_info(
             service_account_info, scopes=SCOPES
         )
@@ -95,7 +100,6 @@ def archive_to_google_drive(entry_meta, docx_bytes):
         st.warning("⚠️ Google Drive integration not configured. Check secrets.")
         return None
 
-    # Sanitize inputs for Google Drive metadata (remove newlines / limit length)
     clean_project_name = re.sub(r'[\r\n]+', ' ', entry_meta.get('project_name', 'Untitled')).strip()
     
     file_metadata = {
@@ -128,37 +132,12 @@ def archive_to_google_drive(entry_meta, docx_bytes):
         return gdoc.get('webViewLink')
 
     except Exception as e:
-        # Prints raw details so you can see the exact reason if it fails again
-        st.error(f"Google Drive Upload Error: {str(e)}")
+        error_msg = str(e)
+        if "storageQuotaExceeded" in error_msg:
+            st.error("⚠️ Google Drive Upload Error: The Service Account hit a quota limit. Make sure the Drive folder was created by a regular Google account and shared with the Service Account as Editor.")
+        else:
+            st.error(f"Google Drive Upload Error: {error_msg}")
         return None
-
-    file_metadata = {
-        'name': f"{entry_meta['project_name']} — {entry_meta['industry']} ({entry_meta['created_at'][:10]})",
-        'mimeType': 'application/vnd.google-apps.document',  # Native Google Doc
-        'parents': [folder_id] if folder_id else [],
-        'appProperties': {
-            'industry': entry_meta['industry'],
-            'deliverable_type': entry_meta['deliverable_type'],
-            'target_market': entry_meta['target_market'],
-            'kb_categories': json.dumps(entry_meta['kb_categories']),
-            'objective': entry_meta['objective'][:500],
-            'created_at': entry_meta['created_at']
-        }
-    }
-
-    media = MediaIoBaseUpload(
-        io.BytesIO(docx_bytes),
-        mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        resumable=True
-    )
-
-    gdoc = drive_service.files().create(
-        body=file_metadata,
-        media_body=media,
-        fields='id, webViewLink'
-    ).execute()
-
-    return gdoc.get('webViewLink')
 
 
 def load_drive_kb_index():
@@ -168,36 +147,44 @@ def load_drive_kb_index():
         return []
 
     query = f"'{folder_id}' in parents and mimeType = 'application/vnd.google-apps.document' and trashed = false"
-    results = drive_service.files().list(
-        q=query,
-        pageSize=100,
-        fields="files(id, name, webViewLink, createdTime, appProperties)",
-        orderBy="createdTime desc"
-    ).execute()
+    
+    try:
+        results = drive_service.files().list(
+            q=query,
+            pageSize=100,
+            fields="files(id, name, webViewLink, createdTime, appProperties)",
+            orderBy="createdTime desc",
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True
+        ).execute()
 
-    files = results.get('files', [])
-    index = []
-    for f in files:
-        props = f.get('appProperties', {})
-        kb_cats = []
-        if 'kb_categories' in props:
-            try:
-                kb_cats = json.loads(props['kb_categories'])
-            except Exception:
-                kb_cats = []
+        files = results.get('files', [])
+        index = []
+        for f in files:
+            props = f.get('appProperties', {})
+            kb_cats = []
+            if 'kb_categories' in props:
+                try:
+                    kb_cats = json.loads(props['kb_categories'])
+                except Exception:
+                    kb_cats = []
 
-        index.append({
-            "id": f['id'],
-            "name": f['name'],
-            "web_link": f['webViewLink'],
-            "created_at": props.get('created_at', f.get('createdTime')),
-            "industry": props.get('industry', 'Uncategorized'),
-            "deliverable_type": props.get('deliverable_type', 'Report'),
-            "target_market": props.get('target_market', 'General'),
-            "kb_categories": kb_cats,
-            "objective": props.get('objective', ''),
-        })
-    return index
+            index.append({
+                "id": f['id'],
+                "name": f['name'],
+                "web_link": f['webViewLink'],
+                "created_at": props.get('created_at', f.get('createdTime')),
+                "industry": props.get('industry', 'Uncategorized'),
+                "deliverable_type": props.get('deliverable_type', 'Report'),
+                "target_market": props.get('target_market', 'General'),
+                "kb_categories": kb_cats,
+                "objective": props.get('objective', ''),
+            })
+        return index
+
+    except Exception as e:
+        st.warning(f"Unable to load Google Drive Knowledge Base: {e}")
+        return []
 
 
 # ----------------------------
@@ -206,10 +193,10 @@ def load_drive_kb_index():
 with st.sidebar:
     st.header("⚙️ Report Settings")
     max_output_tokens = st.slider(
-        "Max output tokens", min_value=4000, max_value=16000, value=12000, step=1000
+        "Max output tokens", min_value=4000, max_value=16000, value=10000, step=1000
     )
     max_searches = st.slider(
-        "Max web searches allowed", min_value=5, max_value=30, value=20, step=5
+        "Max web searches allowed", min_value=5, max_value=30, value=10, step=5
     )
     st.caption("📌 Reports are natively saved as editable Google Docs in your shared Google Drive folder.")
 
