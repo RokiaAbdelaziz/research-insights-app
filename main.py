@@ -161,7 +161,7 @@ if submit_button:
         with st.spinner("Analyzing market parameters, verifying sources, and generating SOP report..."):
             try:
                 response = client.messages.create(
-                    model=model_choice,
+                   model=MODEL_NAME,
                     max_tokens=4000,
                     system=COMPREHENSIVE_SYSTEM_PROMPT,
                     messages=[{"role": "user", "content": user_prompt}]
