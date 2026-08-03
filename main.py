@@ -92,7 +92,44 @@ def archive_to_google_drive(entry_meta, docx_bytes):
     """Uploads Word document to Drive and converts it into a native, editable Google Doc."""
     drive_service, _, folder_id = get_drive_services()
     if not drive_service:
-        st.warning("⚠️ Google Drive integration not configured. Report won't be saved to Drive.")
+        st.warning("⚠️ Google Drive integration not configured. Check secrets.")
+        return None
+
+    # Sanitize inputs for Google Drive metadata (remove newlines / limit length)
+    clean_project_name = re.sub(r'[\r\n]+', ' ', entry_meta.get('project_name', 'Untitled')).strip()
+    
+    file_metadata = {
+        'name': f"{clean_project_name} — {entry_meta.get('industry', 'Report')} ({entry_meta.get('created_at', '')[:10]})",
+        'mimeType': 'application/vnd.google-apps.document',  # Auto-convert to Google Doc
+        'parents': [folder_id] if folder_id else [],
+        'appProperties': {
+            'industry': str(entry_meta.get('industry', '')),
+            'deliverable_type': str(entry_meta.get('deliverable_type', '')),
+            'target_market': str(entry_meta.get('target_market', '')),
+            'kb_categories': json.dumps(entry_meta.get('kb_categories', [])),
+            'created_at': str(entry_meta.get('created_at', ''))
+        }
+    }
+
+    try:
+        media = MediaIoBaseUpload(
+            io.BytesIO(docx_bytes),
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            resumable=True
+        )
+
+        gdoc = drive_service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields='id, webViewLink',
+            supportsAllDrives=True
+        ).execute()
+
+        return gdoc.get('webViewLink')
+
+    except Exception as e:
+        # Prints raw details so you can see the exact reason if it fails again
+        st.error(f"Google Drive Upload Error: {str(e)}")
         return None
 
     file_metadata = {
