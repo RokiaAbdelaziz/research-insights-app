@@ -122,6 +122,7 @@ def archive_to_google_drive(entry_meta, docx_bytes):
             resumable=True
         )
 
+        # 1. Create the document inside the shared folder
         gdoc = drive_service.files().create(
             body=file_metadata,
             media_body=media,
@@ -129,16 +130,34 @@ def archive_to_google_drive(entry_meta, docx_bytes):
             supportsAllDrives=True
         ).execute()
 
+        file_id = gdoc.get('id')
+
+        # 2. Transfer ownership/permission to your main user email if provided in secrets
+        owner_email = st.secrets.get("MY_GOOGLE_EMAIL", "")
+        if owner_email and file_id:
+            try:
+                drive_service.permissions().create(
+                    fileId=file_id,
+                    body={
+                        'type': 'user',
+                        'role': 'writer',
+                        'emailAddress': owner_email
+                    },
+                    fields='id',
+                    supportsAllDrives=True
+                ).execute()
+            except Exception:
+                pass  # Fallback gracefully if email isn't set
+
         return gdoc.get('webViewLink')
 
     except Exception as e:
         error_msg = str(e)
         if "storageQuotaExceeded" in error_msg:
-            st.error("⚠️ Google Drive Upload Error: The Service Account hit a quota limit. Make sure the Drive folder was created by a regular Google account and shared with the Service Account as Editor.")
+            st.error("⚠️ Service Account Quota Limit: The bot's isolated storage is full. Please make sure the Drive folder owner is set in secrets (MY_GOOGLE_EMAIL).")
         else:
             st.error(f"Google Drive Upload Error: {error_msg}")
         return None
-
 
 def load_drive_kb_index():
     """Lists files directly from the shared Google Drive folder."""
