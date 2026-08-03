@@ -18,7 +18,7 @@ except Exception:
     st.stop()
 
 # Hardcoded Model (Fastest and highest quality for research synthesis)
-MODEL_NAME = "claude-3-5-sonnet-20241022"
+MODEL_NAME = "claude-sonnet-5"
 
 
 # Master Form
