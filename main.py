@@ -161,15 +161,16 @@ if submit_button:
         with st.spinner("Analyzing market parameters, verifying sources, and generating report..."):
             try:
                 response = client.messages.create(
-                   model=MODEL_NAME,
+                    model=MODEL_NAME,
                     max_tokens=4000,
                     system=COMPREHENSIVE_SYSTEM_PROMPT,
-                    messages=[{"role": "user", "content": user_prompt}]
+                    messages=[{"role": "user", "content": user_prompt}],
+                    tools=[{"type": "web_search", "name": "web_search"}]
                 )
                 
                 report_text = "".join(
-    [block.text for block in response.content if getattr(block, "type", None) == "text"]
-)
+                    [block.text for block in response.content if getattr(block, "type", None) == "text"]
+                )
                 
                 st.success("Report Generated Successfully!")
                 st.markdown("---")
