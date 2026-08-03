@@ -10,14 +10,15 @@ st.set_page_config(
 st.title("🔍 Research & Insights Specialist Engine")
 st.caption("Automated Research & Business Intelligence Generator")
 
-# Sidebar - Configuration
-st.sidebar.header("API & Configuration")
-api_key = st.sidebar.text_input("Enter Anthropic API Key", type="password")
-model_choice = st.sidebar.selectbox(
-    "Select Claude Model",
-    ["claude-3-5-sonnet-20241022", "claude-3-opus-20240229", "claude-3-haiku-20240307"],
-    index=0
-)
+# Configuration
+try:
+    api_key = st.secrets["ANTHROPIC_API_KEY"]
+except Exception:
+    st.error("⚠️ API Key not found in Streamlit Secrets. Please check your app settings.")
+    st.stop()
+
+# Hardcoded Model (Fastest and highest quality for research synthesis)
+MODEL_NAME = "claude-3-5-sonnet-20241022"
 
 
 # Master Form
