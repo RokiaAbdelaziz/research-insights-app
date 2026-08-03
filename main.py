@@ -14,6 +14,10 @@ from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
+
 st.set_page_config(
     page_title="Research & Insights Automation Engine",
     page_icon="🔍",
@@ -34,13 +38,8 @@ except Exception:
 
 MODEL_NAME = "claude-sonnet-5"
 
-# Handbook Step 5 categories, used to tag every research item so it can be
-# organized and later retrieved by topic (not just by Fact/Insight/etc.).
 KB_CATEGORIES = ["Market", "Consumer", "Competitors", "Content", "Trends", "Technology", "Statistics"]
 
-# Maps the form's Priority Focus Areas to the handbook's KB categories, so a
-# reasonable default set of tags exists without extra clicks — the user can
-# still override it before archiving.
 FOCUS_TO_CATEGORY = {
     "Consumer Behavior & Pain Points": "Consumer",
     "Competitor Positioning & Branding": "Competitors",
@@ -50,7 +49,6 @@ FOCUS_TO_CATEGORY = {
     "Market Gaps & Business Opportunities": "Market",
 }
 
-# Handbook's Monthly Responsibilities + weekly research request types.
 DELIVERABLE_TYPES = [
     "General Research Summary",
     "Competitor Research Report",
@@ -64,83 +62,119 @@ DELIVERABLE_TYPES = [
 ]
 
 # ----------------------------
-# Local Knowledge Base (file-based)
+# Google Drive / Docs Integration
 # ----------------------------
-# NOTE ON PERSISTENCE: this stores the knowledge base as files on local disk
-# (knowledge_base/index.json + knowledge_base/files/*). That's fine for a
-# locally-run app or one deployed on a host with a persistent disk. On
-# ephemeral hosts (e.g. Streamlit Community Cloud free tier), this directory
-# is wiped on every redeploy/restart — it will NOT survive as a permanent
-# company knowledge base. If long-term, shared archiving is required, this
-# should be swapped for a real backend (Notion API, Airtable, Google Sheets,
-# a proper database) — tell me which one and I'll wire it in.
-KB_DIR = Path("knowledge_base")
-KB_FILES_DIR = KB_DIR / "files"
-KB_INDEX_PATH = KB_DIR / "index.json"
+SCOPES = [
+    'https://www.googleapis.com/auth/drive',
+    'https://www.googleapis.com/auth/documents'
+]
 
-
-def _ensure_kb_dirs():
-    KB_FILES_DIR.mkdir(parents=True, exist_ok=True)
-
-
-def load_kb_index():
-    _ensure_kb_dirs()
-    if not KB_INDEX_PATH.exists():
-        return []
+@st.cache_resource
+def get_drive_services():
+    """Authenticates using Service Account credentials from Streamlit Secrets."""
+    if "GDRIVE_SERVICE_ACCOUNT" not in st.secrets:
+        return None, None, None
     try:
-        return json.loads(KB_INDEX_PATH.read_text(encoding="utf-8"))
-    except Exception:
+        service_account_info = json.loads(st.secrets["GDRIVE_SERVICE_ACCOUNT"])
+        creds = service_account.Credentials.from_service_account_info(
+            service_account_info, scopes=SCOPES
+        )
+        drive_service = build('drive', 'v3', credentials=creds)
+        docs_service = build('docs', 'v1', credentials=creds)
+        folder_id = st.secrets.get("GDRIVE_FOLDER_ID", "")
+        return drive_service, docs_service, folder_id
+    except Exception as e:
+        st.error(f"Failed to authenticate Google Drive API: {e}")
+        return None, None, None
+
+
+def archive_to_google_drive(entry_meta, docx_bytes):
+    """Uploads Word document to Drive and converts it into a native, editable Google Doc."""
+    drive_service, _, folder_id = get_drive_services()
+    if not drive_service:
+        st.warning("⚠️ Google Drive integration not configured. Report won't be saved to Drive.")
+        return None
+
+    file_metadata = {
+        'name': f"{entry_meta['project_name']} — {entry_meta['industry']} ({entry_meta['created_at'][:10]})",
+        'mimeType': 'application/vnd.google-apps.document',  # Native Google Doc
+        'parents': [folder_id] if folder_id else [],
+        'appProperties': {
+            'industry': entry_meta['industry'],
+            'deliverable_type': entry_meta['deliverable_type'],
+            'target_market': entry_meta['target_market'],
+            'kb_categories': json.dumps(entry_meta['kb_categories']),
+            'objective': entry_meta['objective'][:500],
+            'created_at': entry_meta['created_at']
+        }
+    }
+
+    media = MediaIoBaseUpload(
+        io.BytesIO(docx_bytes),
+        mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        resumable=True
+    )
+
+    gdoc = drive_service.files().create(
+        body=file_metadata,
+        media_body=media,
+        fields='id, webViewLink'
+    ).execute()
+
+    return gdoc.get('webViewLink')
+
+
+def load_drive_kb_index():
+    """Lists files directly from the shared Google Drive folder."""
+    drive_service, _, folder_id = get_drive_services()
+    if not drive_service or not folder_id:
         return []
 
+    query = f"'{folder_id}' in parents and mimeType = 'application/vnd.google-apps.document' and trashed = false"
+    results = drive_service.files().list(
+        q=query,
+        pageSize=100,
+        fields="files(id, name, webViewLink, createdTime, appProperties)",
+        orderBy="createdTime desc"
+    ).execute()
 
-def save_kb_index(index):
-    _ensure_kb_dirs()
-    KB_INDEX_PATH.write_text(json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8")
+    files = results.get('files', [])
+    index = []
+    for f in files:
+        props = f.get('appProperties', {})
+        kb_cats = []
+        if 'kb_categories' in props:
+            try:
+                kb_cats = json.loads(props['kb_categories'])
+            except Exception:
+                kb_cats = []
 
-
-def archive_to_knowledge_base(entry_meta, report_text, docx_bytes):
-    """Handbook Step 9 — Archive. Stores the finished report + metadata so
-    future research can build on it instead of starting from zero."""
-    _ensure_kb_dirs()
-    entry_id = entry_meta["id"]
-
-    md_path = KB_FILES_DIR / f"{entry_id}.md"
-    md_path.write_text(report_text, encoding="utf-8")
-
-    docx_path = None
-    if docx_bytes is not None:
-        docx_path = KB_FILES_DIR / f"{entry_id}.docx"
-        docx_path.write_bytes(docx_bytes)
-
-    entry_meta["md_path"] = str(md_path)
-    entry_meta["docx_path"] = str(docx_path) if docx_path else None
-
-    index = load_kb_index()
-    index.append(entry_meta)
-    save_kb_index(index)
-    return entry_meta
+        index.append({
+            "id": f['id'],
+            "name": f['name'],
+            "web_link": f['webViewLink'],
+            "created_at": props.get('created_at', f.get('createdTime')),
+            "industry": props.get('industry', 'Uncategorized'),
+            "deliverable_type": props.get('deliverable_type', 'Report'),
+            "target_market": props.get('target_market', 'General'),
+            "kb_categories": kb_cats,
+            "objective": props.get('objective', ''),
+        })
+    return index
 
 
 # ----------------------------
-# Report depth / length controls
+# Sidebar Settings
 # ----------------------------
 with st.sidebar:
     st.header("⚙️ Report Settings")
     max_output_tokens = st.slider(
-        "Max output tokens", min_value=4000, max_value=16000, value=12000, step=1000,
-        help="A full 9-section handbook report typically needs 6,000-10,000 tokens. "
-             "Raise this if reports keep getting cut off."
+        "Max output tokens", min_value=4000, max_value=16000, value=12000, step=1000
     )
     max_searches = st.slider(
-        "Max web searches allowed", min_value=5, max_value=30, value=20, step=5,
-        help="Comprehensive market/competitor reports need 10-20+ searches. "
-             "Too low a cap forces shallow, under-researched output."
+        "Max web searches allowed", min_value=5, max_value=30, value=20, step=5
     )
-    st.caption(
-        "📌 Knowledge Base storage is local to this app's filesystem. On "
-        "ephemeral hosting it will not persist across redeploys — see code "
-        "comments for swapping in a permanent backend."
-    )
+    st.caption("📌 Reports are natively saved as editable Google Docs in your shared Google Drive folder.")
 
 # ----------------------------
 # Tabs: Generate vs. Knowledge Base
@@ -155,20 +189,9 @@ with tab_generate:
         col1, col2 = st.columns(2)
 
         with col1:
-            project_name = st.text_input(
-                "1. Project / Client Name",
-                placeholder="e.g., Specialty Coffee Retail Audit 2026"
-            )
-
-            industry = st.selectbox(
-                "2. Core Industry Focus",
-                ["Fashion", "Interior & Architecture", "Food & Beverage (F&B)", "Medical", "Cross-Industry / General"]
-            )
-
-            deliverable_type = st.selectbox(
-                "3. Deliverable Type",
-                DELIVERABLE_TYPES
-            )
+            project_name = st.text_input("1. Project / Client Name", placeholder="e.g., Specialty Coffee Retail Audit 2026")
+            industry = st.selectbox("2. Core Industry Focus", ["Fashion", "Interior & Architecture", "Food & Beverage (F&B)", "Medical", "Cross-Industry / General"])
+            deliverable_type = st.selectbox("3. Deliverable Type", DELIVERABLE_TYPES)
 
         with col2:
             language = st.selectbox(
@@ -179,41 +202,23 @@ with tab_generate:
                     "Egyptian Natural Language Arabic (عامية مصرية احترافية)"
                 ]
             )
-
             priority_focus = st.multiselect(
                 "5. Primary Focus Areas (Select up to 3)",
                 list(FOCUS_TO_CATEGORY.keys()),
                 default=["Consumer Behavior & Pain Points", "Market Gaps & Business Opportunities"]
             )
+            target_market = st.text_input("6. Target Market / Geographic Region", placeholder="e.g., Egypt, GCC Region, Global")
 
-            target_market = st.text_input(
-                "6. Target Market / Geographic Region",
-                placeholder="e.g., Egypt, GCC Region, Global"
-            )
-
-        objective = st.text_area(
-            "7. Research Objective & Business Question (Crucial)",
-            placeholder="Why are we conducting this research? What specific business question or decision will this output support? Who will use it?",
-            height=100
-        )
-
-        specific_questions = st.text_area(
-            "8. Key Research Questions (Optional)",
-            placeholder="List specific questions to answer (e.g., What are top competitors charging? What packaging material is trending?)",
-            height=80
-        )
-
+        objective = st.text_area("7. Research Objective & Business Question (Crucial)", height=100)
+        specific_questions = st.text_area("8. Key Research Questions (Optional)", height=80)
         kb_categories = st.multiselect(
-            "9. Knowledge Base Categories (for archiving — auto-suggested from your Focus Areas, edit if needed)",
+            "9. Knowledge Base Categories",
             KB_CATEGORIES,
             default=sorted({FOCUS_TO_CATEGORY[f] for f in priority_focus if f in FOCUS_TO_CATEGORY}) or ["Market"]
         )
 
         submit_button = st.form_submit_button("Generate Research Report")
 
-    # ----------------------------
-    # System Prompt — mirrors the Handbook's exact structure & standards
-    # ----------------------------
     COMPREHENSIVE_SYSTEM_PROMPT = f"""
 You are an automated Research & Insights Specialist operating under this company's Research & Insights Specialist Handbook. Your mission is to reduce uncertainty before decisions are made — not to make the decisions yourself. You provide reliable research, verified facts, meaningful insights, and valuable opportunities so the team can move with confidence instead of assumptions.
 
@@ -263,7 +268,7 @@ REQUIRED DELIVERABLE STRUCTURE — this is the Handbook's Research Standard. Use
 1. Research Objective
 2. Research Questions
 3. Executive Summary
-4. Key Findings — organized under topical subheadings from this exact set: Market, Consumer, Competitors, Content, Trends, Technology, Statistics (omit any category with no findings). Within each subheading, tag every statement inline with its classification in bold brackets, e.g. "**[Fact — Priority 2]** ..." or "**[Insight — High]** ...".
+4. Key Findings — organized under topical subheadings from this exact set: Market, Consumer, Competitors, Content, Trends, Technology, Statistics (omit any category with no findings). Within each subheading, tag every statement inline with its classification in bold brackets, e.g. "**[Fact — Priority 2]** ...".
 5. Supporting Data — a Markdown table of the key quantitative data points referenced above (columns: Data Point, Value, Source, Source Tier, Publication Date).
 6. Key Insights — the strategic "why it matters" analysis, each tagged with a priority.
 7. Opportunities — each tagged with a priority.
@@ -280,15 +285,12 @@ LANGUAGE & TONE:
 - IF Language = Egyptian Natural Language Arabic (عامية مصرية احترافية): professional, clean Egyptian Arabic suitable for local agency teams (عامية مصرية راقية ومفهومة لفرق العمل). Keep technical marketing/research terms intact in English (Insights, Conversion, Benchmarks, Target Audience, Positioning, CAGR, SKU, Fact, Observation, Opportunity, Recommendation) while making the surrounding prose read naturally, not like a translation. Section headers and body text should all be in Egyptian Arabic.
 """
 
-    # ----------------------------
-    # Helper: run one generation, continuing automatically if truncated
-    # ----------------------------
     def generate_report(client, user_prompt, system_prompt, max_tokens, max_searches_n, status):
         messages = [{"role": "user", "content": user_prompt}]
         full_text = ""
         searches_seen = []
 
-        for turn in range(4):  # hard safety cap on continuation turns
+        for turn in range(4):
             status.update(label=f"Researching and drafting (pass {turn + 1})...")
             response = client.messages.create(
                 model=MODEL_NAME,
@@ -320,16 +322,12 @@ LANGUAGE & TONE:
             messages.append({"role": "assistant", "content": response.content})
             messages.append({
                 "role": "user",
-                "content": "Continue the report exactly where you left off. Do not repeat "
-                           "any content already written, do not restart headers already "
-                           "completed, and do not add any preamble."
+                "content": "Continue the report exactly where you left off. Do not repeat any content already written, do not restart headers already completed, and do not add any preamble."
             })
 
         return full_text, searches_seen
 
-    # ----------------------------
-    # Markdown -> Word (.docx) conversion
-    # ----------------------------
+    # Word conversion helpers
     def _set_paragraph_rtl(paragraph):
         pPr = paragraph._p.get_or_add_pPr()
         bidi = OxmlElement('w:bidi')
@@ -360,7 +358,6 @@ LANGUAGE & TONE:
 
     def markdown_to_docx(markdown_text: str, rtl: bool = False, base_font: str = None) -> bytes:
         doc = Document()
-
         normal_style = doc.styles['Normal']
         if base_font:
             normal_style.font.name = base_font
@@ -383,11 +380,9 @@ LANGUAGE & TONE:
 
         while i < n:
             line = lines[i].rstrip()
-
             if not line.strip():
                 i += 1
                 continue
-
             if re.match(r'^-{3,}$', line.strip()):
                 i += 1
                 continue
@@ -463,9 +458,6 @@ LANGUAGE & TONE:
         buffer.seek(0)
         return buffer.getvalue()
 
-    # ----------------------------
-    # Execution
-    # ----------------------------
     if submit_button:
         if not objective:
             st.warning("⚠️ Please provide a Research Objective before generating.")
@@ -510,7 +502,6 @@ SPECIFIC RESEARCH QUESTIONS TO ANSWER:
             st.markdown("---")
             st.markdown(report_text)
 
-            # Build the .docx once so it can be both downloaded and archived
             is_arabic = "Arabic" in language
             docx_bytes = None
             try:
@@ -520,85 +511,60 @@ SPECIFIC RESEARCH QUESTIONS TO ANSWER:
                     base_font="Arial" if is_arabic else "Calibri"
                 )
             except Exception as e:
-                st.warning(f"Word export failed, but .txt/.md are still available below. ({e})")
+                st.warning(f"Word export failed ({e})")
 
-            # Handbook Step 9 — Archive. Every completed research is stored
-            # automatically so it's searchable later instead of being lost.
+            # Google Drive Archival
             entry_meta = {
-                "id": str(uuid.uuid4())[:8],
                 "created_at": datetime.now().isoformat(timespec="seconds"),
                 "project_name": project_name or "Untitled",
                 "industry": industry,
                 "deliverable_type": deliverable_type,
                 "target_market": target_market or "General / Unspecified",
                 "language": language,
-                "priority_focus": priority_focus,
                 "kb_categories": kb_categories,
                 "objective": objective,
-                "searches_used": searches_used,
             }
-            archive_to_knowledge_base(entry_meta, report_text, docx_bytes)
-            st.info(
-                f"📚 Archived to Knowledge Base under: {', '.join(kb_categories)} "
-                f"— see the Knowledge Base tab to browse or re-download."
-            )
+            
+            gdoc_url = None
+            if docx_bytes:
+                gdoc_url = archive_to_google_drive(entry_meta, docx_bytes)
 
-            # Action Buttons
+            if gdoc_url:
+                st.success(f"📄 **Archived to Google Drive!** [Open Editable Google Doc]({gdoc_url})")
+            else:
+                st.info("📚 Generated report ready for local download below.")
+
             st.markdown("---")
             safe_name = (project_name or "Research").strip().replace(" ", "_")
 
             col_dl1, col_dl2, col_dl3 = st.columns(3)
             with col_dl1:
-                st.download_button(
-                    label="📄 Download Report (.txt)",
-                    data=report_text,
-                    file_name=f"{safe_name}_Report.txt",
-                    mime="text/plain"
-                )
+                st.download_button("📄 Download (.txt)", data=report_text, file_name=f"{safe_name}_Report.txt", mime="text/plain")
             with col_dl2:
-                st.download_button(
-                    label="📝 Download Report (.md)",
-                    data=report_text,
-                    file_name=f"{safe_name}_Report.md",
-                    mime="text/markdown"
-                )
+                st.download_button("📝 Download (.md)", data=report_text, file_name=f"{safe_name}_Report.md", mime="text/markdown")
             with col_dl3:
                 if docx_bytes is not None:
-                    st.download_button(
-                        label="📘 Download Report (.docx)",
-                        data=docx_bytes,
-                        file_name=f"{safe_name}_Report.docx",
-                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    )
+                    st.download_button("📘 Download (.docx)", data=docx_bytes, file_name=f"{safe_name}_Report.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 
 # ============================================================
-# TAB 2 — KNOWLEDGE BASE (browse / filter / re-download archived research)
+# TAB 2 — KNOWLEDGE BASE (Google Drive Backend)
 # ============================================================
 with tab_kb:
-    st.subheader("📚 Company Knowledge Base")
-    st.caption(
-        "Every generated report is archived here automatically (Handbook Step 9). "
-        "Future research should build on these instead of starting from zero."
-    )
+    st.subheader("📚 Company Knowledge Base (Google Drive)")
+    st.caption("All reports are live, editable Google Docs saved directly inside your team's Google Drive folder.")
 
-    index = load_kb_index()
+    index = load_drive_kb_index()
 
     if not index:
-        st.info("No archived research yet. Generate a report in the first tab to populate the Knowledge Base.")
+        st.info("No archived research found in Google Drive folder, or Google Drive API credentials are not set up.")
     else:
         col_f1, col_f2, col_f3 = st.columns(3)
         with col_f1:
-            filter_industry = st.multiselect(
-                "Filter by Industry",
-                sorted({e["industry"] for e in index}),
-            )
+            filter_industry = st.multiselect("Filter by Industry", sorted({e["industry"] for e in index if e.get("industry")}))
         with col_f2:
-            filter_category = st.multiselect(
-                "Filter by KB Category",
-                KB_CATEGORIES,
-            )
+            filter_category = st.multiselect("Filter by KB Category", KB_CATEGORIES)
         with col_f3:
-            search_term = st.text_input("Search project name / objective", placeholder="e.g., cold brew")
+            search_term = st.text_input("Search report title / objective", placeholder="e.g., cold brew")
 
         filtered = index
         if filter_industry:
@@ -609,48 +575,19 @@ with tab_kb:
             term = search_term.lower()
             filtered = [
                 e for e in filtered
-                if term in e.get("project_name", "").lower() or term in e.get("objective", "").lower()
+                if term in e.get("name", "").lower() or term in e.get("objective", "").lower()
             ]
 
-        filtered = sorted(filtered, key=lambda e: e["created_at"], reverse=True)
-
-        st.write(f"**{len(filtered)}** of {len(index)} archived reports match your filters.")
+        st.write(f"**{len(filtered)}** of {len(index)} Google Docs match your filters.")
         st.markdown("---")
 
         for entry in filtered:
-            with st.expander(
-                f"{entry['project_name']} — {entry['industry']} — {entry['created_at'][:10]}"
-            ):
+            with st.expander(f"📄 {entry['name']}"):
+                st.write(f"**Industry:** {entry['industry']}")
                 st.write(f"**Deliverable Type:** {entry['deliverable_type']}")
                 st.write(f"**Target Market:** {entry['target_market']}")
                 st.write(f"**KB Categories:** {', '.join(entry.get('kb_categories', [])) or '—'}")
-                st.write(f"**Objective:** {entry.get('objective', '—')}")
-                if entry.get("searches_used"):
-                    st.write(f"**Searches performed:** {len(entry['searches_used'])}")
-
-                md_path = Path(entry["md_path"]) if entry.get("md_path") else None
-                docx_path = Path(entry["docx_path"]) if entry.get("docx_path") else None
-
-                bcol1, bcol2, bcol3 = st.columns(3)
-                with bcol1:
-                    if md_path and md_path.exists():
-                        st.download_button(
-                            "📝 Download .md",
-                            data=md_path.read_text(encoding="utf-8"),
-                            file_name=md_path.name,
-                            mime="text/markdown",
-                            key=f"md_{entry['id']}"
-                        )
-                with bcol2:
-                    if docx_path and docx_path.exists():
-                        st.download_button(
-                            "📘 Download .docx",
-                            data=docx_path.read_bytes(),
-                            file_name=docx_path.name,
-                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                            key=f"docx_{entry['id']}"
-                        )
-                with bcol3:
-                    if st.button("👁️ Preview", key=f"preview_{entry['id']}"):
-                        if md_path and md_path.exists():
-                            st.markdown(md_path.read_text(encoding="utf-8"))
+                if entry.get("objective"):
+                    st.write(f"**Objective:** {entry['objective']}")
+                
+                st.markdown(f"🔗 **[Open & Edit in Google Docs]({entry['web_link']})**")
