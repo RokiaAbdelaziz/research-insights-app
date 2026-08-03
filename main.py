@@ -8,7 +8,7 @@ st.set_page_config(
 )
 
 st.title("🔍 Research & Insights Specialist Engine")
-st.caption("Automated SOP-Compliant Research & Business Intelligence Generator")
+st.caption("Automated Research & Business Intelligence Generator")
 
 # Sidebar - Configuration
 st.sidebar.header("API & Configuration")
@@ -19,12 +19,6 @@ model_choice = st.sidebar.selectbox(
     index=0
 )
 
-st.sidebar.markdown("---")
-st.sidebar.markdown("### SOP Standards Checklist")
-st.sidebar.markdown("✔ Fact vs Observation vs Insight separation")
-st.sidebar.markdown("✔ Priority Tier 1-5 Source classification")
-st.sidebar.markdown("✔ Multi-language output support")
-st.sidebar.markdown("✔ No creative over-stepping constraint")
 
 # Master Form
 with st.form("comprehensive_research_form"):
@@ -42,7 +36,7 @@ with st.form("comprehensive_research_form"):
         )
         
         deliverable_type = st.selectbox(
-            "3. SOP Deliverable Type",
+            "3. Deliverable Type",
             [
                 "General Research Summary",
                 "Competitor Research Report",
@@ -92,7 +86,7 @@ with st.form("comprehensive_research_form"):
         height=80
     )
 
-    submit_button = st.form_submit_button("Generate SOP-Compliant Research Report")
+    submit_button = st.form_submit_button("Generate Research Report")
 
 # System Prompt Assignment
 COMPREHENSIVE_SYSTEM_PROMPT = """
