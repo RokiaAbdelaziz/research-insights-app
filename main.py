@@ -55,8 +55,8 @@ h1, h2, h3, h4, h5, h6, p, span {
 /* ---------------------------------------------------- */
 label, [data-testid="stWidgetLabel"] label, p.stWidgetLabel {
     color: #FFFFFF !important;
-    font-size: 1.1rem !important; /* Increased font size */
-    font-weight: 700 !important;  /* Bold font weight */
+    font-size: 1.1rem !important;
+    font-weight: 700 !important;
     letter-spacing: 0.02em !important;
     margin-bottom: 6px !important;
 }
@@ -77,6 +77,13 @@ input, textarea {
     color: #000000 !important;
 }
 
+/* DARKER PLACEHOLDER TEXT (e.g., "e.g., Specialty Coffee Audit") */
+input::placeholder, 
+textarea::placeholder {
+    color: #555555 !important;
+    opacity: 1 !important;
+}
+
 /* Fix for inner multiselect search container and cursor box */
 div[data-baseweb="select"] [role="combobox"] {
     background-color: transparent !important;
@@ -91,6 +98,11 @@ div[data-baseweb="select"] [role="combobox"] > div {
 div[data-baseweb="select"] input {
     background-color: transparent !important;
     color: #000000 !important;
+}
+
+/* Placeholder for dropdowns/selectboxes */
+div[data-baseweb="select"] [aria-hidden="true"] {
+    color: #555555 !important;
 }
 
 /* ---------------------------------------------------- */
