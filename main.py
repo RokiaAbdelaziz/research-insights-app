@@ -69,7 +69,7 @@ input, textarea {
 /* RED MULTISELECT OPTION CHIPS / TAGS                  */
 /* ---------------------------------------------------- */
 [data-baseweb="tag"], span[data-baseweb="tag"] {
-    background-color: #f5f5f5 !important;
+    background-color: #FF4B4B !important;
     border: 1px solid #B22222 !important;
     color: #FFFFFF !important;
     border-radius: 4px !important;
