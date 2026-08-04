@@ -18,13 +18,61 @@ from docx.oxml import OxmlElement
 
 st.set_page_config(
     page_title="Research & Insights Automation Engine",
-    page_icon="🔍",
+    page_icon="assets/logo_placeholder.png",
     layout="wide"
 )
 
 st.title("🔍 Research & Insights Specialist Engine")
 st.caption("Automated Research & Business Intelligence Generator")
-
+# ----------------------------
+# Branding
+# ----------------------------
+# Swap assets/logo_placeholder.png and assets/favicon.png for real brand
+# files any time — same filenames, no code changes needed. The circular "3M"
+# mark is a placeholder standing in for an actual logo.
+try:
+    st.logo("assets/logo_placeholder.png", size="large")
+except Exception:
+    pass  # older Streamlit versions without st.logo() just skip this gracefully
+ 
+st.markdown("""
+<style>
+/* Tighter, more deliberate type for a premium dark-theme feel */
+h1, h2, h3 { letter-spacing: 0.02em; }
+ 
+/* Accent underline on the active tab instead of the default color block */
+.stTabs [data-baseweb="tab-list"] { gap: 4px; }
+.stTabs [aria-selected="true"] {
+    border-bottom: 2px solid #E5E5E5 !important;
+    color: #FFFFFF !important;
+}
+ 
+/* Slightly muted card-like look for expanders (Knowledge Base entries) */
+[data-testid="stExpander"] {
+    border: 1px solid #2A2A2A;
+    border-radius: 8px;
+}
+ 
+/* Buttons: subtle border instead of flat fill, feels more editorial */
+.stButton > button, .stDownloadButton > button, .stLinkButton > a {
+    border: 1px solid #E5E5E5 !important;
+    background-color: transparent !important;
+    color: #F5F5F5 !important;
+}
+.stButton > button:hover, .stDownloadButton > button:hover, .stLinkButton > a:hover {
+    background-color: #E5E5E5 !important;
+    color: #000000 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+ 
+col_logo, col_title = st.columns([1, 8])
+with col_logo:
+    st.image("assets/logo_placeholder.png", width=64)
+with col_title:
+    st.title("Research & Insights Specialist Engine")
+    st.caption("Automated Research & Business Intelligence Generator — aligned to the Research & Insights Specialist Handbook")
+ 
 # ----------------------------
 # Configuration
 # ----------------------------
