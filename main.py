@@ -45,9 +45,20 @@ st.markdown("""
 }
 
 /* Typography */
-h1, h2, h3, h4, h5, h6, label, p, span {
+h1, h2, h3, h4, h5, h6, p, span {
     color: #FFFFFF !important;
     letter-spacing: 0.02em;
+}
+
+/* ---------------------------------------------------- */
+/* QUESTION TITLES / LABELS (BOLD & LARGER FONT)        */
+/* ---------------------------------------------------- */
+label, [data-testid="stWidgetLabel"] label, p.stWidgetLabel {
+    color: #FFFFFF !important;
+    font-size: 1.1rem !important; /* Increased font size */
+    font-weight: 700 !important;  /* Bold font weight */
+    letter-spacing: 0.02em !important;
+    margin-bottom: 6px !important;
 }
 
 /* ---------------------------------------------------- */
