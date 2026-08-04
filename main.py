@@ -23,7 +23,7 @@ st.set_page_config(
 )
 
 st.title("🔍 Research & Insights Specialist Engine")
-st.caption("Automated Research & Business Intelligence Generator — aligned to the Research & Insights Specialist Handbook")
+st.caption("Automated Research & Business Intelligence Generator")
 
 # ----------------------------
 # Configuration
@@ -356,7 +356,7 @@ with tab_generate:
         )
 
         kb_categories = st.multiselect(
-            "9. Knowledge Base Categories (for archiving — auto-suggested from your Focus Areas, edit if needed)",
+            "9. Knowledge Base Categories (for archiving)",
             KB_CATEGORIES,
             default=sorted({FOCUS_TO_CATEGORY[f] for f in priority_focus if f in FOCUS_TO_CATEGORY}) or ["Market"]
         )
@@ -690,7 +690,7 @@ SPECIFIC RESEARCH QUESTIONS TO ANSWER:
             }
             title = f"{project_name or 'Untitled'} — {deliverable_type} ({date.today().isoformat()})"
 
-            # Handbook Step 9 — Archive. Google Docs is the primary archive;
+            # Archive. Google Docs is the primary archive;
             # local save is a fallback so nothing is ever silently lost.
             if google_kb_configured():
                 try:
@@ -751,7 +751,7 @@ SPECIFIC RESEARCH QUESTIONS TO ANSWER:
 with tab_kb:
     st.subheader("📚 Company Knowledge Base")
     st.caption(
-        "Every generated report is archived here automatically (Handbook Step 9). "
+        "Every generated report is archived here automatically. "
         "Future research should build on these instead of starting from zero."
     )
 
