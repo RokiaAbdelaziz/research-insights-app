@@ -667,7 +667,7 @@ LANGUAGE & TONE:
                 i += 1
                 continue
 
-            numbered_match = re.match(r me^\d+\.\s+(.*)', line):
+            numbered_match = re.match(r'^\d+\.\s+(.*)', line)
             if numbered_match:
                 p = doc.add_paragraph(style='List Number')
                 _add_run_with_bold(p, numbered_match.group(1), rtl=rtl)
