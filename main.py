@@ -53,9 +53,11 @@ h1, h2, h3, h4, h5, h6, label, p, span {
 /* ---------------------------------------------------- */
 /* WHITE INPUT BOXES & DROPDOWNS                        */
 /* ---------------------------------------------------- */
-input, textarea, select, [data-baseweb="input"] > div, [data-baseweb="textarea"] > div, [data-baseweb="select"] > div {
+/* Outer containers for text inputs, textareas, and select boxes */
+div[data-baseweb="input"] > div, 
+div[data-baseweb="textarea"] > div, 
+div[data-baseweb="select"] > div:first-child {
     background-color: #FFFFFF !important;
-    color: #000000 !important;
     border: 1px solid #CCCCCC !important;
     border-radius: 6px !important;
 }
@@ -65,23 +67,39 @@ input, textarea {
     color: #000000 !important;
 }
 
+/* Fix for inner multiselect search container and cursor box */
+div[data-baseweb="select"] [role="combobox"] {
+    background-color: transparent !important;
+}
+
+div[data-baseweb="select"] [role="combobox"] > div {
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+div[data-baseweb="select"] input {
+    background-color: transparent !important;
+    color: #000000 !important;
+}
+
 /* ---------------------------------------------------- */
 /* RED MULTISELECT OPTION CHIPS / TAGS                  */
 /* ---------------------------------------------------- */
-[data-baseweb="tag"], span[data-baseweb="tag"] {
+[data-baseweb="tag"], span[data-baseweb="tag"], div[data-baseweb="tag"] {
     background-color: #FF4B4B !important;
-    border: 1px solid #B22222 !important;
+    border: 1px solid #FF4B4B !important;
     color: #FFFFFF !important;
     border-radius: 4px !important;
 }
 
 /* Text inside red tags */
-[data-baseweb="tag"] span {
+[data-baseweb="tag"] span, span[data-baseweb="tag"] span {
     color: #FFFFFF !important;
 }
 
 /* Close (X) icon on tags */
-[data-baseweb="tag"] svg {
+[data-baseweb="tag"] svg, span[data-baseweb="tag"] svg {
     fill: #FFFFFF !important;
 }
 
