@@ -67,9 +67,8 @@ input, textarea {
 
 /* Multiselect tags / chips */
 [data-baseweb="tag"] {
-background-color: #F5F5F5 !important;
-    border: 1px solid #B22222 !important;
-    color: #FFFFFF !important;
+background-color:#f5f5f5 !important;
+    color: #f5f5f5 !important;
     border-radius: 4px !important;
 }
 
