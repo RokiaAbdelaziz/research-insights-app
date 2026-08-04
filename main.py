@@ -31,7 +31,7 @@ st.caption("Automated Research & Business Intelligence Generator")
 # files any time — same filenames, no code changes needed. The circular "3M"
 # mark is a placeholder standing in for an actual logo.
 try:
-    st.logo("logo_placeholder.png", size="large")
+    st.logo("Logo.jpeg", size="large")
 except Exception:
     pass  # older Streamlit versions without st.logo() just skip this gracefully
  
