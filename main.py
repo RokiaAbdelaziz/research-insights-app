@@ -23,7 +23,7 @@ st.set_page_config(
 )
 
 # ----------------------------
-# Branding & Pure Black Dark Theme
+# Branding & Dark Theme with White Input Boxes
 # ----------------------------
 try:
     st.logo("Logo.jpeg", size="large")
@@ -50,17 +50,46 @@ h1, h2, h3, h4, h5, h6, label, p, span {
     letter-spacing: 0.02em;
 }
 
-/* Input Fields, Text Areas, and Select Boxes */
-input, textarea, select, div[role="combobox"], [data-baseweb="select"] > div {
-    background-color: #0D0D0D !important;
-    color: #FFFFFF !important;
-    border: 1px solid #2A2A2A !important;
+/* ---------------------------------------------------- */
+/* WHITE INPUT BOXES & DROPDOWNS (WITH DARK TEXT)       */
+/* ---------------------------------------------------- */
+input, textarea, select, [data-baseweb="input"] > div, [data-baseweb="textarea"] > div, [data-baseweb="select"] > div {
+    background-color: #FFFFFF !important;
+    color: #000000 !important;
+    border: 1px solid #CCCCCC !important;
     border-radius: 6px !important;
 }
-input:focus, textarea:focus {
-    border-color: #E5E5E5 !important;
+
+/* Text typed inside inputs */
+input, textarea {
+    color: #000000 !important;
 }
 
+/* Multiselect tags / chips */
+[data-baseweb="tag"] {
+    background-color: #E0E0E0 !important;
+    color: #000000 !important;
+}
+
+/* Dropdown menu items when open */
+[data-baseweb="menu"] {
+    background-color: #FFFFFF !important;
+    color: #000000 !important;
+}
+[data-baseweb="option"] {
+    color: #000000 !important;
+}
+[data-baseweb="option"]:hover {
+    background-color: #F0F0F0 !important;
+}
+
+/* Focused input border accent */
+input:focus, textarea:focus {
+    border-color: #0066CC !important;
+    box-shadow: 0 0 0 1px #0066CC !important;
+}
+
+/* ---------------------------------------------------- */
 /* Tabs Styling */
 .stTabs [data-baseweb="tab-list"] { 
     gap: 8px; 
@@ -638,7 +667,7 @@ LANGUAGE & TONE:
                 i += 1
                 continue
 
-            numbered_match = re.match(r'^\d+\.\s+(.*)', line)
+            numbered_match = re.match(r me^\d+\.\s+(.*)', line):
             if numbered_match:
                 p = doc.add_paragraph(style='List Number')
                 _add_run_with_bold(p, numbered_match.group(1), rtl=rtl)
