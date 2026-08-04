@@ -35,7 +35,7 @@ st.markdown("""
 /* Global Pitch Black Background */
 .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
     background-color: #000000 !important;
-    color: #F5F5F5 !important;
+    color: #f5f5f5 !important;
 }
 
 /* Sidebar Pitch Black Background */
@@ -69,7 +69,7 @@ input, textarea {
 /* RED MULTISELECT OPTION CHIPS / TAGS                  */
 /* ---------------------------------------------------- */
 [data-baseweb="tag"], span[data-baseweb="tag"] {
-    background-color: #8B0000 !important;
+    background-color: #f5f5f5 !important;
     border: 1px solid #B22222 !important;
     color: #FFFFFF !important;
     border-radius: 4px !important;
