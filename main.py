@@ -206,7 +206,7 @@ with col_logo:
     st.image("logo_placeholder.png", width=64)
 with col_title:
     st.title("Research & Insights Specialist Engine")
-    st.caption("Automated Research & Business Intelligence Generator — aligned to the Research & Insights Specialist Handbook")
+    st.caption("Automated Research & Business Intelligence Generator")
 # ----------------------------
 # Configuration
 # ----------------------------
@@ -483,7 +483,7 @@ with tab_generate:
                 [
                     "English (Formal Business / Research)",
                     "Modern Standard Arabic (فصحى)",
-                    "Egyptian Natural Language Arabic (عامية مصرية احترافية)"
+                    "Egyptian Natural Language Arabic (عامية مصرية)"
                 ]
             )
 
@@ -581,7 +581,7 @@ FORMATTING:
 LANGUAGE & TONE:
 - IF Language = English (Formal Business / Research): formal, sharp, authoritative agency-research English.
 - IF Language = Modern Standard Arabic (فصحى): precise, standard corporate Arabic, clear analytical terminology.
-- IF Language = Egyptian Natural Language Arabic (عامية مصرية احترافية): professional, clean Egyptian Arabic suitable for local agency teams (عامية مصرية راقية ومفهومة لفرق العمل). Keep technical marketing/research terms intact in English (Insights, Conversion, Benchmarks, Target Audience, Positioning, CAGR, SKU, Fact, Observation, Opportunity, Recommendation) while making the surrounding prose read naturally, not like a translation. Section headers and body text should all be in Egyptian Arabic.
+- IF Language = Egyptian Natural Language Arabic (عامية مصرية): professional, clean Egyptian Arabic suitable for local agency teams (عامية مصرية راقية ومفهومة لفرق العمل). Keep technical marketing/research terms intact in English (Insights, Conversion, Benchmarks, Target Audience, Positioning, CAGR, SKU, Fact, Observation, Opportunity, Recommendation) while making the surrounding prose read naturally, not like a translation. Section headers and body text should all be in Egyptian Arabic.
 """
 
     def generate_report(client, user_prompt, system_prompt, max_tokens, max_searches_n, status):
