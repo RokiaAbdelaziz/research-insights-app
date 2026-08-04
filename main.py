@@ -51,7 +51,7 @@ h1, h2, h3, h4, h5, h6, label, p, span {
 }
 
 /* ---------------------------------------------------- */
-/* WHITE INPUT BOXES & DROPDOWNS (WITH DARK TEXT)       */
+/* WHITE INPUT BOXES & DROPDOWNS                        */
 /* ---------------------------------------------------- */
 input, textarea, select, [data-baseweb="input"] > div, [data-baseweb="textarea"] > div, [data-baseweb="select"] > div {
     background-color: #FFFFFF !important;
@@ -65,11 +65,24 @@ input, textarea {
     color: #000000 !important;
 }
 
-/* Multiselect tags / chips */
-[data-baseweb="tag"] {
-background-color:#f5f5f5 !important;
-    color: #f5f5f5 !important;
+/* ---------------------------------------------------- */
+/* RED MULTISELECT OPTION CHIPS / TAGS                  */
+/* ---------------------------------------------------- */
+[data-baseweb="tag"], span[data-baseweb="tag"] {
+    background-color: #8B0000 !important;
+    border: 1px solid #B22222 !important;
+    color: #FFFFFF !important;
     border-radius: 4px !important;
+}
+
+/* Text inside red tags */
+[data-baseweb="tag"] span {
+    color: #FFFFFF !important;
+}
+
+/* Close (X) icon on tags */
+[data-baseweb="tag"] svg {
+    fill: #FFFFFF !important;
 }
 
 /* Dropdown menu items when open */
@@ -86,8 +99,8 @@ background-color:#f5f5f5 !important;
 
 /* Focused input border accent */
 input:focus, textarea:focus {
-    border-color: #0066CC !important;
-    box-shadow: 0 0 0 1px #0066CC !important;
+    border-color: #FF4B4B !important;
+    box-shadow: 0 0 0 1px #FF4B4B !important;
 }
 
 /* ---------------------------------------------------- */
@@ -101,7 +114,7 @@ input:focus, textarea:focus {
     color: #888888 !important;
 }
 .stTabs [aria-selected="true"] {
-    border-bottom: 2px solid #FFFFFF !important;
+    border-bottom: 2px solid #FF4B4B !important;
     color: #FFFFFF !important;
 }
 
@@ -133,7 +146,6 @@ with col_logo:
 with col_title:
     st.title("Research & Insights Specialist Engine")
     st.caption("Automated Research & Business Intelligence Generator — aligned to the Research & Insights Specialist Handbook")
-
 # ----------------------------
 # Configuration
 # ----------------------------
