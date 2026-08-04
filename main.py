@@ -53,7 +53,6 @@ h1, h2, h3, h4, h5, h6, label, p, span {
 /* ---------------------------------------------------- */
 /* WHITE INPUT BOXES & DROPDOWNS                        */
 /* ---------------------------------------------------- */
-/* Outer containers for text inputs, textareas, and select boxes */
 div[data-baseweb="input"] > div, 
 div[data-baseweb="textarea"] > div, 
 div[data-baseweb="select"] > div:first-child {
@@ -93,12 +92,10 @@ div[data-baseweb="select"] input {
     border-radius: 4px !important;
 }
 
-/* Text inside red tags */
 [data-baseweb="tag"] span, span[data-baseweb="tag"] span {
     color: #FFFFFF !important;
 }
 
-/* Close (X) icon on tags */
 [data-baseweb="tag"] svg, span[data-baseweb="tag"] svg {
     fill: #FFFFFF !important;
 }
@@ -143,7 +140,11 @@ input:focus, textarea:focus {
     border-radius: 8px !important;
 }
 
-/* Premium Minimalist Buttons */
+/* ---------------------------------------------------- */
+/* BUTTONS STYLING                                      */
+/* ---------------------------------------------------- */
+
+/* Standard Action & Download Buttons (Secondary) */
 .stButton > button, .stDownloadButton > button, .stLinkButton > a {
     border: 1px solid #444444 !important;
     background-color: #0A0A0A !important;
@@ -154,6 +155,25 @@ input:focus, textarea:focus {
     background-color: #FFFFFF !important;
     color: #000000 !important;
     border-color: #FFFFFF !important;
+}
+
+/* PRIMARY GENERATE REPORT BUTTON (Form Submit) */
+div[data-testid="stFormSubmitButton"] button, 
+button[kind="primaryFormSubmit"], 
+.stFormSubmitButton > button {
+    background-color: #FF4B4B !important;
+    color: #FFFFFF !important;
+    border: 1px solid #FF4B4B !important;
+    font-weight: 600 !important;
+    border-radius: 6px !important;
+}
+
+div[data-testid="stFormSubmitButton"] button:hover, 
+button[kind="primaryFormSubmit"]:hover, 
+.stFormSubmitButton > button:hover {
+    background-color: #E03E3E !important;
+    border-color: #E03E3E !important;
+    color: #FFFFFF !important;
 }
 </style>
 """, unsafe_allow_html=True)
