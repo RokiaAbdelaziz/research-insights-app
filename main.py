@@ -22,57 +22,88 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("🔍 Research & Insights Specialist Engine")
-st.caption("Automated Research & Business Intelligence Generator")
 # ----------------------------
-# Branding
+# Branding & Pure Black Dark Theme
 # ----------------------------
-# Swap assets/logo_placeholder.png and assets/favicon.png for real brand
-# files any time — same filenames, no code changes needed. The circular "3M"
-# mark is a placeholder standing in for an actual logo.
 try:
     st.logo("Logo.jpeg", size="large")
 except Exception:
-    pass  # older Streamlit versions without st.logo() just skip this gracefully
- 
+    pass 
+
 st.markdown("""
 <style>
-/* Tighter, more deliberate type for a premium dark-theme feel */
-h1, h2, h3 { letter-spacing: 0.02em; }
- 
-/* Accent underline on the active tab instead of the default color block */
-.stTabs [data-baseweb="tab-list"] { gap: 4px; }
-.stTabs [aria-selected="true"] {
-    border-bottom: 2px solid #E5E5E5 !important;
-    color: #FFFFFF !important;
-}
- 
-/* Slightly muted card-like look for expanders (Knowledge Base entries) */
-[data-testid="stExpander"] {
-    border: 1px solid #2A2A2A;
-    border-radius: 8px;
-}
- 
-/* Buttons: subtle border instead of flat fill, feels more editorial */
-.stButton > button, .stDownloadButton > button, .stLinkButton > a {
-    border: 1px solid #E5E5E5 !important;
-    background-color: transparent !important;
+/* Global Pitch Black Background */
+.stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+    background-color: #000000 !important;
     color: #F5F5F5 !important;
 }
+
+/* Sidebar Pitch Black Background */
+[data-testid="stSidebar"], [data-testid="stSidebar"] > div:first-child {
+    background-color: #000000 !important;
+    border-right: 1px solid #1A1A1A !important;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6, label, p, span {
+    color: #FFFFFF !important;
+    letter-spacing: 0.02em;
+}
+
+/* Input Fields, Text Areas, and Select Boxes */
+input, textarea, select, div[role="combobox"], [data-baseweb="select"] > div {
+    background-color: #0D0D0D !important;
+    color: #FFFFFF !important;
+    border: 1px solid #2A2A2A !important;
+    border-radius: 6px !important;
+}
+input:focus, textarea:focus {
+    border-color: #E5E5E5 !important;
+}
+
+/* Tabs Styling */
+.stTabs [data-baseweb="tab-list"] { 
+    gap: 8px; 
+    background-color: #000000 !important;
+}
+.stTabs [data-baseweb="tab"] {
+    background-color: transparent !important;
+    color: #888888 !important;
+}
+.stTabs [aria-selected="true"] {
+    border-bottom: 2px solid #FFFFFF !important;
+    color: #FFFFFF !important;
+}
+
+/* Expanders (Knowledge Base Cards) */
+[data-testid="stExpander"] {
+    background-color: #050505 !important;
+    border: 1px solid #2A2A2A !important;
+    border-radius: 8px !important;
+}
+
+/* Premium Minimalist Buttons */
+.stButton > button, .stDownloadButton > button, .stLinkButton > a {
+    border: 1px solid #444444 !important;
+    background-color: #0A0A0A !important;
+    color: #FFFFFF !important;
+    border-radius: 6px !important;
+}
 .stButton > button:hover, .stDownloadButton > button:hover, .stLinkButton > a:hover {
-    background-color: #E5E5E5 !important;
+    background-color: #FFFFFF !important;
     color: #000000 !important;
+    border-color: #FFFFFF !important;
 }
 </style>
 """, unsafe_allow_html=True)
- 
+
 col_logo, col_title = st.columns([1, 8])
 with col_logo:
     st.image("logo_placeholder.png", width=64)
 with col_title:
     st.title("Research & Insights Specialist Engine")
     st.caption("Automated Research & Business Intelligence Generator — aligned to the Research & Insights Specialist Handbook")
- 
+
 # ----------------------------
 # Configuration
 # ----------------------------
@@ -110,29 +141,6 @@ DELIVERABLE_TYPES = [
 # ----------------------------
 # Knowledge Base — Google Apps Script bridge backend
 # ----------------------------
-# PRIMARY ARCHIVE: every generated report is created as its own real,
-# editable Google Doc inside a Drive folder you choose. Instead of a
-# service account + Docs/Drive API (which commonly fails on personal Google
-# accounts due to service accounts having no Drive storage quota, and
-# folder-sharing permissions not propagating the way people expect), this
-# talks to a small Google Apps Script Web App that runs under YOUR OWN
-# Google account. Docs it creates use your normal Drive quota and are
-# automatically yours.
-#
-# SETUP (see apps_script_bridge.gs for the full script + inline instructions):
-#   1. Paste apps_script_bridge.gs into a new project at script.google.com.
-#   2. Set your own SHARED_SECRET string inside it.
-#   3. Deploy as a Web App (Execute as: Me, Who has access: Anyone) and
-#      authorize it.
-#   4. Put these into Streamlit secrets:
-#        GOOGLE_APPS_SCRIPT_URL    = "<the web app URL>"
-#        GOOGLE_APPS_SCRIPT_SECRET = "<the same secret you set in the script>"
-#        GOOGLE_KB_FOLDER_ID       = "<Drive folder ID to use as the KB>"
-#
-# FALLBACK: if these secrets aren't set, or a call to the script fails, the
-# app still saves a local copy (knowledge_base/ on disk) so nothing is lost
-# — but that local copy won't persist on ephemeral hosting and isn't the
-# shared team archive.
 APPS_SCRIPT_URL = st.secrets.get("GOOGLE_APPS_SCRIPT_URL")
 APPS_SCRIPT_SECRET = st.secrets.get("GOOGLE_APPS_SCRIPT_SECRET")
 KB_FOLDER_ID = st.secrets.get("GOOGLE_KB_FOLDER_ID")
@@ -178,9 +186,7 @@ def markdown_to_blocks(markdown_text: str, rtl: bool = False):
     Converts the app's constrained Markdown subset into a list of simple
     JSON-serializable blocks the Apps Script bridge knows how to render as
     native Google Docs formatting (headings, bold runs, bullet/numbered
-    lists, plain paragraphs). Markdown tables become bold-header
-    pipe-separated rows rather than native Docs tables, to keep this
-    single-pass and dependency-free on the Apps Script side.
+    lists, plain paragraphs).
     """
     blocks = []
     lines = markdown_text.splitlines()
@@ -269,8 +275,6 @@ def export_google_doc_as_docx(doc_id):
 # ----------------------------
 # Local Knowledge Base fallback (file-based)
 # ----------------------------
-# Used only when the Google bridge isn't configured or a call to it fails,
-# so a report is never silently lost. Does NOT persist on ephemeral hosting.
 KB_DIR = Path("knowledge_base")
 KB_FILES_DIR = KB_DIR / "files"
 KB_INDEX_PATH = KB_DIR / "index.json"
@@ -411,9 +415,6 @@ with tab_generate:
 
         submit_button = st.form_submit_button("Generate Research Report")
 
-    # ----------------------------
-    # System Prompt — mirrors the Handbook's exact structure & standards
-    # ----------------------------
     COMPREHENSIVE_SYSTEM_PROMPT = f"""
 You are an automated Research & Insights Specialist operating under this company's Research & Insights Specialist Handbook. Your mission is to reduce uncertainty before decisions are made — not to make the decisions yourself. You provide reliable research, verified facts, meaningful insights, and valuable opportunities so the team can move with confidence instead of assumptions.
 
@@ -480,15 +481,12 @@ LANGUAGE & TONE:
 - IF Language = Egyptian Natural Language Arabic (عامية مصرية احترافية): professional, clean Egyptian Arabic suitable for local agency teams (عامية مصرية راقية ومفهومة لفرق العمل). Keep technical marketing/research terms intact in English (Insights, Conversion, Benchmarks, Target Audience, Positioning, CAGR, SKU, Fact, Observation, Opportunity, Recommendation) while making the surrounding prose read naturally, not like a translation. Section headers and body text should all be in Egyptian Arabic.
 """
 
-    # ----------------------------
-    # Helper: run one generation, continuing automatically if truncated
-    # ----------------------------
     def generate_report(client, user_prompt, system_prompt, max_tokens, max_searches_n, status):
         messages = [{"role": "user", "content": user_prompt}]
         full_text = ""
         searches_seen = []
 
-        for turn in range(4):  # hard safety cap on continuation turns
+        for turn in range(4):
             status.update(label=f"Researching and drafting (pass {turn + 1})...")
             response = client.messages.create(
                 model=MODEL_NAME,
@@ -527,9 +525,6 @@ LANGUAGE & TONE:
 
         return full_text, searches_seen
 
-    # ----------------------------
-    # Markdown -> Word (.docx) conversion (used for local backup / download)
-    # ----------------------------
     def _set_paragraph_rtl(paragraph):
         pPr = paragraph._p.get_or_add_pPr()
         bidi = OxmlElement('w:bidi')
@@ -663,9 +658,6 @@ LANGUAGE & TONE:
         buffer.seek(0)
         return buffer.getvalue()
 
-    # ----------------------------
-    # Execution
-    # ----------------------------
     if submit_button:
         if not objective:
             st.warning("⚠️ Please provide a Research Objective before generating.")
@@ -738,8 +730,6 @@ SPECIFIC RESEARCH QUESTIONS TO ANSWER:
             }
             title = f"{project_name or 'Untitled'} — {deliverable_type} ({date.today().isoformat()})"
 
-            # Archive. Google Docs is the primary archive;
-            # local save is a fallback so nothing is ever silently lost.
             if google_kb_configured():
                 try:
                     doc_id, doc_url = create_kb_google_doc(
@@ -765,7 +755,6 @@ SPECIFIC RESEARCH QUESTIONS TO ANSWER:
                     f"(Google Docs Knowledge Base not configured — see sidebar)."
                 )
 
-            # Action Buttons
             st.markdown("---")
             safe_name = (project_name or "Research").strip().replace(" ", "_")
 
@@ -794,7 +783,7 @@ SPECIFIC RESEARCH QUESTIONS TO ANSWER:
                     )
 
 # ============================================================
-# TAB 2 — KNOWLEDGE BASE (browse / filter / re-download archived research)
+# TAB 2 — KNOWLEDGE BASE
 # ============================================================
 with tab_kb:
     st.subheader("📚 Company Knowledge Base")
