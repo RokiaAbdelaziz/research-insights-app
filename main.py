@@ -18,7 +18,7 @@ from docx.oxml import OxmlElement
 
 st.set_page_config(
     page_title="Research & Insights Automation Engine",
-    page_icon="assets/logo_placeholder.png",
+    page_icon="logo_placeholder.png",
     layout="wide"
 )
 
@@ -31,7 +31,7 @@ st.caption("Automated Research & Business Intelligence Generator")
 # files any time — same filenames, no code changes needed. The circular "3M"
 # mark is a placeholder standing in for an actual logo.
 try:
-    st.logo("assets/logo_placeholder.png", size="large")
+    st.logo("logo_placeholder.png", size="large")
 except Exception:
     pass  # older Streamlit versions without st.logo() just skip this gracefully
  
@@ -68,7 +68,7 @@ h1, h2, h3 { letter-spacing: 0.02em; }
  
 col_logo, col_title = st.columns([1, 8])
 with col_logo:
-    st.image("assets/logo_placeholder.png", width=64)
+    st.image("logo_placeholder.png", width=64)
 with col_title:
     st.title("Research & Insights Specialist Engine")
     st.caption("Automated Research & Business Intelligence Generator — aligned to the Research & Insights Specialist Handbook")
