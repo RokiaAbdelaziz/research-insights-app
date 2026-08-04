@@ -18,7 +18,7 @@ from docx.oxml import OxmlElement
 
 st.set_page_config(
     page_title="Research & Insights Automation Engine",
-    page_icon="logo_placeholder.png",
+    page_icon="Logo.jpeg",
     layout="wide"
 )
 
